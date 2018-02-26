@@ -3,7 +3,6 @@ type: module
 description: A small module to add some custom functionality to the Lavu site
 package: Development
 core: 8.x
-configure: lavucustom.form
 
 dependencies:
   - drupal:paragraphs
