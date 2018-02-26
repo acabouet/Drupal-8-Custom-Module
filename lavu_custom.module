@@ -1,0 +1,201 @@
+<?php
+
+/**
+* Implements hook_page_attachments();
+*/
+function lavu_custom_page_attachments(array &$attachments) {
+    //Get a node ID
+    $node_id = \Drupal::routeMatch()->getRawParameter('node');
+
+    //Make sure we're on the Bar POS page
+    if($node_id == '1463') {
+        $attachments['#attached']['html_head'][] = [
+            // The data.
+            [
+                '#type' => 'html_tag',
+                '#tag' => 'script',
+                '#value' => '{
+                "@context": "http://schema.org",
+                "@type": "Product",
+                "name": "Lavu BAR POS",
+                "aggregateRating": {
+                    "@type": "AggregateRating",
+                    "ratingValue": "4.9",
+                    "reviewCount": "32"
+                },
+                "offers": {
+                    "@type": "AggregateOffer",
+                    "lowPrice": "69",
+                    "highPrice": "79",
+                    "priceCurrency": "USD"
+                }}',
+                // Set attributes like src to load a file.
+                '#attributes' => array('type' => 'application/id+json'),
+
+            ],
+            // A key, to make it possible to recognize this HTML  element when altering.
+            'bar-schema',
+        ];
+    }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function lavu_custom_theme($existing, $type, $theme, $path) {
+
+  $is_front =  \Drupal::service('path.matcher')->isFrontPage();
+
+  return [
+    // template for the hubspot blog sign up form block
+    'hubspot_blog_form' => [
+      'variables' => ['test_var' => NULL ]
+    ],
+    'hubspot_demo_form' => [
+      // setting up a var to check if this block is appearing on the front page or not
+      'variables' => ['is_front' => $is_front]
+    ],
+    'hubspot_demo_form_text' => [
+      // setting up a var to check if this block is appearing on the front page or not
+      'variables' => ['is_front' => $is_front]
+    ],
+    'lavu_search_form' => [
+      'render element' => 'form'
+    ],
+
+    'lavu_free_trial_form' => [
+      'render element' => 'form'
+    ]
+  ];
+}
+
+// Custom Search Stuff
+
+/**
+ * Implements hook_theme_suggestions_alter().
+ */
+function lavu_custom_theme_suggestions_alter(array &$suggestions, array $variables, $hook) {
+  if (isset($variables['element']) && isset($variables['element']['#type']) && $variables['element']['#type'] == 'form') {
+    $original_theme_hook = $variables['theme_hook_original'];
+
+    $suggestions[] = $original_theme_hook . '__' . str_replace('-', '_', $variables['element']['#id']);
+  }
+  return $suggestions;
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function lavu_custom_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  if ($form_id == 'search_block_form') {
+
+    $form['#theme'] = ['lavu_search_form'];
+
+  } else if ($form_id == 'freetrial_form') {
+    $form['#theme'] = ['lavu_free_trial_form'];
+  }
+}
+
+
+// Free Trial Sign Up Process
+/**
+ * Request Defaults - data that will stay the same from request to request
+ */
+function request_defaults() {
+  $l_defaults = array(
+    'campaign' => 'Website: Free Trial',
+    'leadsource' => 'Organic',
+    'menu' => 'default_restau'
+  );
+
+  return $l_defaults;
+}
+
+
+/**
+ * Send request to Lavu POS API to receive app creds
+ */
+function send_to_lavu($firstname, $lastname, $businessname, $email, $phone) {
+  // Lavu App Endpoint
+  $lavuEndpoint = 'https://register.poslavu.com/signup';
+
+  // Other required fields
+  $l_defaults = request_defaults();
+
+  $lavudata = array(
+    'package' => 'lavu',
+    'firstname' => $firstname,
+    'lastname' => $lastname,
+    'company' => $businessname,
+    'email' => $email,
+    'phone' => $phone,
+    'leadsource' => $l_defaults['leadsource'],
+    'campaign_source_c' => $l_defaults['campaign'],
+    'default_menu' => $l_defaults['menu']
+  );
+  $lavudatajson = json_encode($lavudata);
+
+  // Connect to the Lavu Free Trial Endpoint
+  $curl = @curl_init();
+  @curl_setopt($curl, CURLOPT_POST, true);
+  @curl_setopt($curl, CURLOPT_POSTFIELDS, $lavudatajson);
+  @curl_setopt($curl, CURLOPT_URL, $lavuEndpoint);
+  @curl_setopt($curl, CURLOPT_HTTPHEADER, array(
+    'Content-Type: application/json'
+  ));
+  @curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+  $l_result = @curl_exec($curl);
+  @curl_close($curl);
+
+  // Get the dataname and add it the data array so we can send it to hubspot
+  $l_array = json_decode($l_result);
+  $dataname = $l_array->dataname;
+  $lavudata['data_name_c'] = $dataname;
+
+  return $lavudata;
+
+}
+
+/**
+ * Send request to Hubspot Form API to log submission to API Request Form and sync to Salesforce
+ */
+function send_to_hubspot($data) {
+  $hubspotEndPoint = 'https://forms.hubspot.com/uploads/form/v2/4107695/1ed27242-aa84-47ac-adcb-047b048d1e79';
+
+  // Prepare additional data need for hubspot
+  $theip = \Drupal::request()->getClientIp();
+  $hubspotutk = '';
+  if(!empty($_COOKIE['hubspotutk'])) {
+    $hubspotutk      = $_COOKIE['hubspotutk'];
+  }
+
+  $hs_context      = array(
+    'hutk' => $hubspotutk,
+    'ipAddress' => $theip,
+    'pageUrl' => 'https://lavu.com/free-trial',
+    'pageName' => 'Free Trial Sign Up'
+  );
+  $hs_context_json = json_encode($hs_context);
+
+  $post_params = [];
+  foreach ($data as $key => $value) {
+    $post_params[] = $key . '=' . urlencode($value);
+  }
+  $str_post = implode('&', $post_params);
+  $hs_data = $str_post . '&hs_context=' . urlencode($hs_context_json); // appending hubspot specific data to the data string
+
+  // Connect to the Hubspot Form Endpoint
+  $ch = @curl_init();
+  @curl_setopt($ch, CURLOPT_POST, true);
+  @curl_setopt($ch, CURLOPT_POSTFIELDS, $hs_data);
+  @curl_setopt($ch, CURLOPT_URL, $hubspotEndPoint);
+  @curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+    'Content-Type: application/x-www-form-urlencoded'
+  ));
+  @curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  $h_result    = @curl_exec($ch); // the response from HubSpot.
+  $status_code = @curl_getinfo($ch, CURLINFO_HTTP_CODE); // the hubspot response status code
+  @curl_close($ch);
+
+  return $status_code;
+}

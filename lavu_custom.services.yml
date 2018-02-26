@@ -1,0 +1,15 @@
+services:
+  lavu_custom.render_menu_extension:
+      class: 'Drupal\lavu_custom\Twig\RenderMenuExtension'
+      tags:
+        - { name: twig.extension }
+
+  lavu_custom.theme_path_extension:
+      class: 'Drupal\lavu_custom\Twig\ThemePathExtension'
+      tags:
+        - { name: twig.extension }
+
+  lavu_custom.taxonomy_term_name_extension:
+        class: 'Drupal\lavu_custom\Twig\TaxonomyTermNameExtension'
+        tags:
+          - { name: twig.extension }

@@ -1,0 +1,22 @@
+lavu_custom.form:
+  path: '/free-trial'
+  defaults:
+    _title: 'Free Trial'
+    _form: '\Drupal\lavu_custom\Form\FreeTrialForm'
+  requirements:
+    _permission: 'access content'
+lavu_custom.modal_route:
+  path: /video_modal_controller/{pid}
+  defaults:
+    _controller: '\Drupal\lavu_custom\Controller\VideoModalController::videoCallback'
+  requirements:
+    _format: 'html'
+    _access: 'TRUE'
+    _permission: 'access content'
+lavu_custom.partner_referral:
+  path: '/partner-referral'
+  defaults:
+    _title: 'Partner Referral Program'
+    _form: '\Drupal\lavu_custom\Form\PartnerReferralForm'
+  requirements:
+    _permission: 'access content'

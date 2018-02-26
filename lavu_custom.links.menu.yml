@@ -1,0 +1,10 @@
+lavu_custom.search:
+  title: 'Search'
+  description: 'Lavu Restaurant POS Site-wide Search'
+  route_name: search.view
+  weight: 100
+  menu_name: main
+  options:
+    attributes:
+      class: 'sb-icon-search'
+      id: 'search-toggle'

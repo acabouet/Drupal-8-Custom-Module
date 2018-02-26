@@ -1,0 +1,16 @@
+lavu-custom:
+  version: 1.x
+  css:
+    component:
+      css/lavu_custom.module.css: {}
+  js:
+    js/lavu_custom.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupalSettings
+    - core/drupal.ajax
+    - core/drupal.dialog
+    - core/system
+    - core/drupal
+    - core/drupalSettings
+    - core/drupal.dialog.ajax
